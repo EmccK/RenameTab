@@ -1,0 +1,44 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Rename Tab</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <style>
+    body {
+      min-width: 300px; /* 设置最小宽度 */
+      min-height: 150px; /* 设置最小高度 */
+      padding: 15px;     /* 添加一些内边距 */
+    }
+  </style>
+</head>
+<body class="bg-gray-100">
+  <div id="renameTabDiv" class="mb-4">
+    <h2 class="text-lg font-bold mb-2">手动重命名标签页</h2>
+    <input type="text" id="newTabTitle" placeholder="新的标签页标题" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline mb-2">
+    <div class="flex items-center mb-2">
+      <input type="checkbox" id="autoAddHostRule" class="mr-2 leading-tight">
+      <label for="autoAddHostRule" class="text-sm">自动添加 Host 规则</label>
+    </div>
+    <button id="renameTab" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">重命名</button>
+  </div>
+
+  <div id="renameRulesDiv">
+    <h2 class="text-lg font-bold mb-2">管理重命名规则</h2>
+    <div class="mb-2">
+      <input type="text" id="newRuleName" placeholder="规则名称" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline mb-1">
+      <select id="newRuleMatchType" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline mb-1">
+        <option value="host" selected>Host 匹配</option>
+        <option value="regex">正则表达式匹配</option>
+      </select>
+      <input type="text" id="newRuleUrlPattern" placeholder="URL 或 Host 模式" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline mb-1">
+      <input type="text" id="newRuleNewTitle" placeholder="新的标签页标题 (可以使用 ${title} 占位符)" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline mb-1">
+      <button id="addRuleButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">添加规则</button>
+    </div>
+    <div id="rulesList">
+      </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
