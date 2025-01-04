@@ -45,7 +45,7 @@ Contributions are welcome! Feel free to submit issues and pull requests if you e
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the [GPL-3.0 License](https://www.gnu.org/licenses/gpl-3.0).
 
 ## Chinese Version
 
