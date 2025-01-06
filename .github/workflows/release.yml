@@ -5,6 +5,9 @@ on:
     paths:
       - 'manifest.json'
 
+permissions:
+  write-all: true
+
 jobs:
   create_tag:
     runs-on: ubuntu-latest
