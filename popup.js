@@ -11,6 +11,8 @@ document.addEventListener('DOMContentLoaded', function() {
   const newRuleNewTitleInput = document.getElementById('newRuleNewTitle');
   const addRuleButton = document.getElementById('addRuleButton');
   const rulesListDiv = document.getElementById('rulesList');
+  const rulesTableBody = rulesListDiv.querySelector('tbody');
+  const noRulesMessage = rulesListDiv.querySelector('p');
 
   async function getRenameRules() {
     return new Promise((resolve) => {
@@ -30,19 +32,30 @@ document.addEventListener('DOMContentLoaded', function() {
 
   async function displayRules() {
     const rules = await getRenameRules();
-    rulesListDiv.innerHTML = '';
+    rulesTableBody.innerHTML = '';
     if (rules && rules.length > 0) {
-      const ul = document.createElement('ul');
+      noRulesMessage.classList.add('hidden');
       rules.forEach((rule, index) => {
-        const li = document.createElement('li');
-        const ruleText = document.createElement('span');
-        const matchTypeLabel = rule.matchType === 'host' ? '[Host]' : '[Regex]';
-        ruleText.textContent = `${rule.name ? rule.name + ': ' : ''}${matchTypeLabel} ${rule.urlPattern} => ${rule.newTitle}`;
-        li.appendChild(ruleText);
+        const row = rulesTableBody.insertRow();
+        const nameCell = row.insertCell();
+        const matchTypeCell = row.insertCell();
+        const urlPatternCell = row.insertCell();
+        const newTitleCell = row.insertCell();
+        const actionsCell = row.insertCell();
+
+        nameCell.textContent = rule.name ? rule.name : '未命名规则';
+        nameCell.classList.add('px-5', 'py-3', 'border-b', 'border-gray-200', 'bg-white', 'text-sm');
+        matchTypeCell.textContent = rule.matchType === 'host' ? 'Host' : 'Regex';
+        matchTypeCell.classList.add('px-5', 'py-3', 'border-b', 'border-gray-200', 'bg-white', 'text-sm', 'text-center');
+        urlPatternCell.textContent = rule.urlPattern;
+        urlPatternCell.classList.add('px-5', 'py-3', 'border-b', 'border-gray-200', 'bg-white', 'text-sm');
+        newTitleCell.textContent = rule.newTitle;
+        newTitleCell.classList.add('px-5', 'py-3', 'border-b', 'border-gray-200', 'bg-white', 'text-sm');
+        actionsCell.classList.add('px-5', 'py-3', 'border-b', 'border-gray-200', 'bg-white', 'text-sm', 'text-center');
 
         const deleteButton = document.createElement('button');
         deleteButton.textContent = '删除';
-        deleteButton.classList.add('bg-red-500', 'hover:bg-red-700', 'text-white', 'font-bold', 'py-1', 'px-2', 'rounded', 'ml-2');
+        deleteButton.classList.add('bg-red-500', 'hover:bg-red-700', 'text-white', 'font-bold', 'py-1', 'px-2', 'rounded');
         deleteButton.addEventListener('click', async () => {
           const currentRules = await getRenameRules();
           currentRules.splice(index, 1);
@@ -53,12 +66,10 @@ document.addEventListener('DOMContentLoaded', function() {
             alert('删除重命名规则失败。');
           }
         });
-        li.appendChild(deleteButton);
-        ul.appendChild(li);
+        actionsCell.appendChild(deleteButton);
       });
-      rulesListDiv.appendChild(ul);
     } else {
-      rulesListDiv.textContent = '没有已保存的重命名规则。';
+      noRulesMessage.classList.remove('hidden');
     }
   }
 
