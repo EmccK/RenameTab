@@ -14,6 +14,15 @@ document.addEventListener('DOMContentLoaded', function() {
   const rulesTableBody = rulesListDiv.querySelector('tbody');
   const noRulesMessage = rulesListDiv.querySelector('p');
 
+  const editRuleDiv = document.getElementById('editRuleDiv');
+  const editRuleIndexInput = document.getElementById('editRuleIndex');
+  const editRuleNameInput = document.getElementById('editRuleName');
+  const editRuleMatchTypeSelect = document.getElementById('editRuleMatchType');
+  const editRuleUrlPatternInput = document.getElementById('editRuleUrlPattern');
+  const editRuleNewTitleInput = document.getElementById('editRuleNewTitle');
+  const saveRuleButton = document.getElementById('saveRuleButton');
+  const cancelEditButton = document.getElementById('cancelEditButton');
+
   async function getRenameRules() {
     return new Promise((resolve) => {
       chrome.storage.sync.get(['renameRules'], function(result) {
@@ -30,6 +39,16 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
+  function populateEditForm(rule, index) {
+    editRuleIndexInput.value = index;
+    editRuleNameInput.value = rule.name;
+    editRuleMatchTypeSelect.value = rule.matchType;
+    editRuleUrlPatternInput.value = rule.urlPattern;
+    editRuleNewTitleInput.value = rule.newTitle;
+    editRuleDiv.classList.remove('hidden');
+    editRuleDiv.scrollIntoView({ behavior: 'smooth', block: 'start' }); // Scroll to the edit form
+  }
+
   async function displayRules() {
     const rules = await getRenameRules();
     rulesTableBody.innerHTML = '';
@@ -43,15 +62,33 @@ document.addEventListener('DOMContentLoaded', function() {
         const newTitleCell = row.insertCell();
         const actionsCell = row.insertCell();
 
+        // 名称列
         nameCell.textContent = rule.name ? rule.name : '未命名规则';
-        nameCell.classList.add('px-5', 'py-3', 'border-b', 'border-gray-200', 'bg-white', 'text-sm');
+        nameCell.classList.add('px-5', 'border-b', 'border-gray-200', 'bg-white', 'text-sm', 'single-line');
+        nameCell.title = rule.name ? rule.name : '未命名规则';
+
+        // 匹配类型列
         matchTypeCell.textContent = rule.matchType === 'host' ? 'Host' : 'Regex';
-        matchTypeCell.classList.add('px-5', 'py-3', 'border-b', 'border-gray-200', 'bg-white', 'text-sm', 'text-center');
+        matchTypeCell.classList.add('px-5', 'border-b', 'border-gray-200', 'bg-white', 'text-sm', 'text-center', 'single-line');
+
+        // URL模式列 - 允许换行
         urlPatternCell.textContent = rule.urlPattern;
-        urlPatternCell.classList.add('px-5', 'py-3', 'border-b', 'border-gray-200', 'bg-white', 'text-sm');
+        urlPatternCell.classList.add('px-5', 'border-b', 'border-gray-200', 'bg-white', 'text-sm', 'wrap-url');
+
+        // 新标题列
         newTitleCell.textContent = rule.newTitle;
-        newTitleCell.classList.add('px-5', 'py-3', 'border-b', 'border-gray-200', 'bg-white', 'text-sm');
-        actionsCell.classList.add('px-5', 'py-3', 'border-b', 'border-gray-200', 'bg-white', 'text-sm', 'text-center');
+        newTitleCell.classList.add('px-5', 'border-b', 'border-gray-200', 'bg-white', 'text-sm', 'single-line');
+        newTitleCell.title = rule.newTitle;
+
+        // 操作列
+        actionsCell.classList.add('px-5', 'border-b', 'border-gray-200', 'bg-white', 'text-sm', 'text-center', 'single-line');
+        const editButton = document.createElement('button');
+        editButton.textContent = '编辑';
+        editButton.classList.add('bg-blue-500', 'hover:bg-blue-700', 'text-white', 'font-bold', 'py-1', 'px-2', 'rounded', 'mr-1');
+        editButton.addEventListener('click', () => {
+          populateEditForm(rule, index);
+        });
+        actionsCell.appendChild(editButton);
 
         const deleteButton = document.createElement('button');
         deleteButton.textContent = '删除';
@@ -99,8 +136,7 @@ document.addEventListener('DOMContentLoaded', function() {
         chrome.runtime.sendMessage(message);
 
         if (autoAddHostRuleCheckbox.checked) {
-          // Save the manual rename as a new rule
-          const ruleName = newTitle; // 使用新的标签页标题作为规则名
+          const ruleName = newTitle;
           const matchType = 'host';
           const urlPattern = (new URL(currentTab.url)).hostname;
           const newTitlePattern = newTitle;
@@ -109,14 +145,12 @@ document.addEventListener('DOMContentLoaded', function() {
           currentRules.push({ name: ruleName, matchType: matchType, urlPattern: urlPattern, newTitle: newTitlePattern });
           const saved = await saveRenameRules(currentRules);
           if (saved) {
-            // Re-display the updated rules
             displayRules();
           } else {
             alert('保存重命名规则失败。');
           }
         }
 
-        // Clear the input field
         newTabTitleInput.value = '';
       }
     });
@@ -144,7 +178,6 @@ document.addEventListener('DOMContentLoaded', function() {
         newRuleUrlPatternInput.value = '';
         newRuleNewTitleInput.value = '';
         displayRules();
-        // Refresh current tab to apply the new rule
         chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
           if (tabs[0]) {
             chrome.tabs.reload(tabs[0].id);
@@ -156,5 +189,40 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
       alert('请填写 URL 或 Host 模式和新的标签页标题。');
     }
+  });
+
+  saveRuleButton.addEventListener('click', async function() {
+    const index = parseInt(editRuleIndexInput.value);
+    const ruleName = editRuleNameInput.value;
+    const matchType = editRuleMatchTypeSelect.value;
+    const urlPattern = editRuleUrlPatternInput.value;
+    const newTitle = editRuleNewTitleInput.value;
+
+    if (!isNaN(index) && urlPattern && newTitle) {
+      const currentRules = await getRenameRules();
+      if (index >= 0 && index < currentRules.length) {
+        currentRules[index] = { name: ruleName, matchType: matchType, urlPattern: urlPattern, newTitle: newTitle };
+        const saved = await saveRenameRules(currentRules);
+        if (saved) {
+          editRuleDiv.classList.add('hidden');
+          displayRules();
+          chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+            if (tabs[0]) {
+              chrome.tabs.reload(tabs[0].id);
+            }
+          });
+        } else {
+          alert('保存重命名规则失败。');
+        }
+      } else {
+        alert('无效的规则索引。');
+      }
+    } else {
+      alert('请填写 URL 或 Host 模式和新的标签页标题。');
+    }
+  });
+
+  cancelEditButton.addEventListener('click', function() {
+    editRuleDiv.classList.add('hidden');
   });
 });
