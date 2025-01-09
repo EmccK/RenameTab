@@ -4,9 +4,10 @@ on:
   push:
     paths:
       - 'manifest.json'
+  workflow_dispatch:
 
 permissions:
-  write-all: true
+  contents: write
 
 jobs:
   create_tag:
