@@ -1,81 +1,89 @@
-name: Create Release on Manifest Update
+name: Build and Release
 
 on:
   push:
-    paths:
-      - 'manifest.json'
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  create_tag:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0 # 获取所有历史，以便检查 tag 是否存在
-
-      - name: Get version from manifest.json
-        id: get_version
-        run: echo "version=$(jq -r .version manifest.json)" >> $GITHUB_OUTPUT
-
-      - name: Check if tag exists
-        id: check_tag
-        run: |
-          TAG_EXISTS=$(git tag -l "v${{ steps.get_version.outputs.version }}")
-          if [[ -n "$TAG_EXISTS" ]]; then
-            echo "::set-output name=tag_exists::true"
-            echo "Tag v${{ steps.get_version.outputs.version }} already exists."
-          else
-            echo "::set-output name=tag_exists::false"
-          fi
-
-      - name: Create and push tag
-        if: steps.check_tag.outputs.tag_exists == 'false'
-        run: |
-          git config --global user.name 'GitHub Actions Bot'
-          git config --global user.email 'actions@github.com'
-          git tag "v${{ steps.get_version.outputs.version }}"
-          git push origin "v${{ steps.get_version.outputs.version }}"
-
   build_and_release:
-    needs: create_tag
-    if: needs.create_tag.outputs.tag_exists == 'false'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Get version from manifest.json
-        id: get_version
-        run: echo "version=$(jq -r .version manifest.json)" >> $GITHUB_OUTPUT
+      - name: Get version and date
+        id: info
+        run: |
+          VERSION=$(jq -r .version manifest.json)
+          DATE=$(date +'%Y%m%d')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "date=$DATE" >> $GITHUB_OUTPUT
 
       - name: Zip extension
         run: |
-          zip -r rename-tab-v${{ steps.get_version.outputs.version }}.zip . -x "*.git*" -x ".github/*"
+          zip -r rename-tab.zip . -x "*.git*" -x ".github/*" -x "*.md"
 
-      - name: Create Release
-        uses: actions/create-release@v1
+      - name: Delete old releases (keep latest and dated)
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: "v${{ steps.get_version.outputs.version }}"
-          release_name: Release v${{ steps.get_version.outputs.version }}
-          body: |
-            自动构建的 Release v${{ steps.get_version.outputs.version }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 获取所有 release
+          RELEASES=$(gh release list --json tagName,createdAt --limit 100)
 
-          draft: false
-          prerelease: false
+          # 删除旧的 latest release
+          if gh release view latest &>/dev/null; then
+            echo "Deleting old latest release..."
+            gh release delete latest --yes --cleanup-tag || true
+          fi
 
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
+          # 删除旧的日期 release（只保留最新的一个）
+          DATE_RELEASES=$(echo "$RELEASES" | jq -r '.[] | select(.tagName | startswith("v") and contains("-")) | .tagName' | sort -r)
+          SKIP_FIRST=true
+          for TAG in $DATE_RELEASES; do
+            if [ "$SKIP_FIRST" = true ]; then
+              SKIP_FIRST=false
+              echo "Keeping dated release: $TAG"
+              continue
+            fi
+            echo "Deleting old dated release: $TAG"
+            gh release delete "$TAG" --yes --cleanup-tag || true
+          done
+
+      - name: Create latest release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: rename-tab-v${{ steps.get_version.outputs.version }}.zip
-          asset_name: rename-tab-v${{ steps.get_version.outputs.version }}.zip
-          asset_content_type: application/zip
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create latest \
+            --title "Latest Release (v${{ steps.info.outputs.version }})" \
+            --notes "最新版本 v${{ steps.info.outputs.version }}
+
+          构建时间: $(date +'%Y-%m-%d %H:%M:%S UTC')
+
+          此 release 会在每次推送时自动更新。" \
+            --latest \
+            rename-tab.zip
+
+      - name: Create dated release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v${{ steps.info.outputs.version }}-${{ steps.info.outputs.date }}"
+
+          # 检查是否已存在相同日期的 release
+          if gh release view "$TAG" &>/dev/null; then
+            echo "Dated release $TAG already exists, updating..."
+            gh release delete "$TAG" --yes --cleanup-tag || true
+          fi
+
+          gh release create "$TAG" \
+            --title "Release $TAG" \
+            --notes "版本: v${{ steps.info.outputs.version }}
+          日期: ${{ steps.info.outputs.date }}
+
+          此为存档版本。" \
+            rename-tab.zip#rename-tab-$TAG.zip

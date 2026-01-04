@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Rename Tab",
-  "version": "1.2",
+  "version": "1.3",
   "description": "允许用户手动或根据 URL 规则重命名 Chrome 标签页。",
   "permissions": [
     "tabs",
